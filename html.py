@@ -11,13 +11,6 @@ from PIL import Image
 
 #get around javascript built sites
 
-loaded = []
-
-def mark_loaded(func):
-    def wrapper(self):
-        loaded.append(self.url)
-        func(self)
-    return wrapper
 
 
 class HTMLObject:
@@ -26,7 +19,7 @@ class HTMLObject:
         self.url = start_url
         self.html = self.get_document()
         self.domain = urlparse(start_url).netloc
-        self.depth = 1
+        self._depth = 0
 
 
     def _get_html(self):
@@ -65,13 +58,10 @@ class HTMLObject:
         
         return title
 
-
-    def set_depth(self, depth):
-        self.depth = depth
-
     
     def get_interdom_links(self):
-        #add support of relative links via regex
+        # add support of relative links via regex 
+        # save ABSOLUTE links
         links = []
         for link in self.html.find_all("a", href=True):
             if self.domain in link["href"] or link["href"].startswith("/") or link["href"].startswith("./"):
@@ -79,36 +69,39 @@ class HTMLObject:
         
         return links
 
+    def set_depth(self, depth):
+        self._depth = depth
+
     
-    def load_sublinks(self):
-        sub_links = self.get_interdom_links()
+    # def load_sublinks(self):
+    #     sub_links = self.get_interdom_links()
 
-        dir = os.path.join(os.curdir, f"level{self.depth}")
-        if not os.path.exists(dir):
-            os.makedirs(dir)
-        os.chdir(dir)
+    #     dir = os.path.join(os.curdir, f"level{self.depth}")
+    #     if not os.path.exists(dir):
+    #         os.makedirs(dir)
+    #     os.chdir(dir)
 
-        for link in sub_links:
-            if link["href"] not in loaded:
-                html_obj = HTMLObject(urljoin(self.url, link["href"]))
-                css_obj = CSSObject(html_obj)
+    #     for link in sub_links:
+    #         if link["href"] not in loaded:
+    #             html_obj = HTMLObject(urljoin(self.url, link["href"]))
+    #             css_obj = CSSObject(html_obj)
 
-                html_obj.set_depth(self.depth + 1)
+    #             html_obj.set_depth(self.depth + 1)
                 
 
                 
-                sub_dir = self.create_subdir(link)
-                self._change_href(link)
-                os.chdir(sub_dir)    
+    #             sub_dir = self.create_subdir(link)
+    #             self._change_href(link)
+    #             os.chdir(sub_dir)    
 
-                html_obj.download_html()
-                css_obj.donwload_css()
-                css_obj.change_css_paths()
-                time.sleep(1)
-                print(os.getcwd())
-                os.chdir("../")
-                print(os.getcwd())
-                time.sleep(1)
+    #             html_obj.download_html()
+    #             css_obj.donwload_css()
+    #             css_obj.change_css_paths()
+    #             time.sleep(1)
+    #             print(os.getcwd())
+    #             os.chdir("../")
+    #             print(os.getcwd())
+    #             time.sleep(1)
 
 
     def _change_href(self, link):
@@ -123,12 +116,20 @@ class HTMLObject:
         return dir
 
 
-    @mark_loaded
+    
     def download_html(self):
         title = self.get_title()
 
+        dir = os.path.join(os.curdir, f"{self.url.split('/')[-1]}")
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+        
+        os.chdir(dir)
+
         with open(f"{title}.html", "w", encoding="utf-8") as html_file:
             html_file.write(self.html.prettify())
+
+        
 
 
 
@@ -180,9 +181,58 @@ class CSSObject:
             self.css_links[i]["href"] = "./" + title + str(i) + ".css"
 
 
+LOADED_PAGES = []
+
+def get_abs_urls(base_url, links):
+    abs_links = []
+
+    for link in links:
+        if link["href"].startswith("http"):
+            abs_links.append(link)
+        else:
+            abs_link = urljoin(base_url, link["href"])
+            abs_links.append(abs_link)
+    
+    return abs_links
+
+def create_subdir(depth):
+    dir = os.path.join(os.curdir, f"level{depth}")
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+    
+    return dir
+    
+    
+
+def download_subpages(html_obj: HTMLObject, depth: int) -> None:
+    interdom_links = get_abs_urls(html_obj.url, html_obj.get_interdom_links())
+    path = create_subdir(1)
+    os.chdir(path)
+
+    for link in interdom_links:
+        if link not in LOADED_PAGES:
+            print(os.getcwd())
+            sub_page = HTMLObject(link)
+            sub_page.set_depth(1)
+            
+            
+            sub_page.download_html()
+            os.chdir("../")
+            #download_subpages(sub_page, depth-1)
+            #download_subpages(link, depth-1)
+        time.sleep(2)
+    
+    if depth == -1:
+        return 
+
+
 
 
 url = "https://peps.python.org/pep-0008"
 html_obj = HTMLObject(url)
 html_obj.download_html()
-html_obj.load_sublinks()
+download_subpages(html_obj, 1)
+
+
+
+
