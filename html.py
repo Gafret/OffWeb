@@ -234,9 +234,6 @@ def download_subpages(html_obj: HTMLObject, depth: int) -> None:
             
             #download_subpages(link, depth-1)
 
-    
-
-        
 
 
 url = "https://peps.python.org/pep-0008"
