@@ -105,10 +105,10 @@ class HTMLObject:
 
 
     def _change_href(self, link):
-        link["href"] = f".//level{self.depth}//{link['href'].split('/')[-1]}"
+        link["href"] = f"..//..//level{self.depth - 1}//{link['href'].split('/')[-1]}"
 
 
-    def create_subdir(self, link):
+    def create_subdir(self, link): # move from class, doesnt correspond to object at all
         dir = os.path.join(os.curdir, f"{link['href'].split('/')[-1]}")
         if not os.path.exists(dir):
             os.makedirs(dir)
@@ -183,7 +183,7 @@ class CSSObject:
 
 LOADED_PAGES = []
 
-def get_abs_urls(base_url, links):
+def get_abs_urls(base_url, links): # move to HTML class
     abs_links = []
 
     for link in links:
@@ -205,25 +205,37 @@ def create_subdir(depth):
     
 
 def download_subpages(html_obj: HTMLObject, depth: int) -> None:
+
+    if depth == 0:
+            return
+
     interdom_links = get_abs_urls(html_obj.url, html_obj.get_interdom_links())
-    path = create_subdir(1)
+    os.chdir("../")
+    path = create_subdir(depth)
     os.chdir(path)
 
     for link in interdom_links:
         if link not in LOADED_PAGES:
             print(os.getcwd())
+            print(link)
             sub_page = HTMLObject(link)
-            sub_page.set_depth(1)
+            sub_page.set_depth(depth)
+            
             
             
             sub_page.download_html()
             os.chdir("../")
-            #download_subpages(sub_page, depth-1)
+            LOADED_PAGES.append(link)
+            
+            download_subpages(sub_page, depth-1)
+            
             #download_subpages(link, depth-1)
-        time.sleep(2)
     
-    if depth == -1:
-        return 
+         
+        
+    
+
+    
 
 
 
@@ -231,7 +243,7 @@ def download_subpages(html_obj: HTMLObject, depth: int) -> None:
 url = "https://peps.python.org/pep-0008"
 html_obj = HTMLObject(url)
 html_obj.download_html()
-download_subpages(html_obj, 1)
+download_subpages(html_obj, 2)
 
 
 
