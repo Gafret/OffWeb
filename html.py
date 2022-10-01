@@ -105,7 +105,7 @@ class HTMLObject:
 
 
     def _change_href(self, link):
-        link["href"] = f"..//..//level{self.depth - 1}//{link['href'].split('/')[-1]}"
+        link["href"] = f"..//..//level{self._depth - 1}//{link['href'].split('/')[-1]}"
 
 
     def create_subdir(self, link): # move from class, doesnt correspond to object at all
@@ -117,17 +117,27 @@ class HTMLObject:
 
 
     
-    def download_html(self):
+    def download_html(self, *, level=None):
         title = self.get_title()
+        dir = None
 
-        dir = os.path.join(os.curdir, f"{self.url.split('/')[-1]}")
-        if not os.path.exists(dir):
-            os.makedirs(dir)
-        
-        os.chdir(dir)
+        if level != None:
+            dir = os.path.join(os.curdir, f"level{level}//{self.url.split('/')[-1]}")
+            if not os.path.exists(dir):
+                os.makedirs(dir)
+        else:
+            dir = os.path.join(os.curdir, f"{self.url.split('/')[-1]}")
+            if not os.path.exists(dir):
+                os.makedirs(dir)
+            
 
-        with open(f"{title}.html", "w", encoding="utf-8") as html_file:
+        with open(f"{dir}//{title}.html", "w", encoding="utf-8") as html_file:
             html_file.write(self.html.prettify())
+
+
+        
+
+        
 
         
 
@@ -202,47 +212,37 @@ def create_subdir(depth):
     
     return dir
     
-    
+#def (get relative path from root dir)
 
 def download_subpages(html_obj: HTMLObject, depth: int) -> None:
 
     if depth == 0:
             return
 
-    interdom_links = get_abs_urls(html_obj.url, html_obj.get_interdom_links())
-    os.chdir("../")
-    path = create_subdir(depth)
-    os.chdir(path)
+    interdom_links = get_abs_urls(html_obj.url, html_obj.get_interdom_links()) # delete duplicates
+
 
     for link in interdom_links:
         if link not in LOADED_PAGES:
-            print(os.getcwd())
-            print(link)
+
             sub_page = HTMLObject(link)
             sub_page.set_depth(depth)
+            sub_page.download_html(level=depth)
             
-            
-            
-            sub_page.download_html()
-            os.chdir("../")
             LOADED_PAGES.append(link)
-            
             download_subpages(sub_page, depth-1)
             
             #download_subpages(link, depth-1)
+
     
-         
+
         
-    
-
-    
-
-
 
 
 url = "https://peps.python.org/pep-0008"
 html_obj = HTMLObject(url)
 html_obj.download_html()
+LOADED_PAGES.append(url)
 download_subpages(html_obj, 2)
 
 
