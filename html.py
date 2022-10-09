@@ -95,7 +95,7 @@ class HTMLObject:
 
         if level != None:
             
-            dir = os.path.join(os.curdir, f"level{level}//{folder_name}")
+            dir = os.path.join(os.curdir, f"level{level}/{folder_name}")
             if not os.path.exists(dir):
                 os.makedirs(dir)
         else:
@@ -107,7 +107,7 @@ class HTMLObject:
         with open(f"{dir}//{title}.html", "w", encoding="utf-8") as html_file:
             html_file.write(self.html.prettify())
 
-        self.local_path = dir + "//" + self.get_title() + ".html"
+        self.local_path = dir + "/" + self.get_title() + ".html"
 
         return self.local_path
 
@@ -137,16 +137,21 @@ class CSSObject:
                 links.append(link)
             else:
                 links.append(link)
-            
+
         return links
             
     
     def donwload_css(self):
         title = self.html_obj.get_title()
+        folder_name = self.html_obj.url.split('/')[-1] if self.html_obj.url.split('/')[-1] != "" else self.html_obj.url.split('/')[-2]
+
+        dir = os.path.join(os.curdir, f"statics//{folder_name}")
+        if not os.path.exists(dir):
+            os.makedirs(dir)
 
         for i in range(len(self.css_links)):
             css_page = requests.get(self.css_links[i]["href"])
-            with open(f"{title + str(i)}.css", "w") as css_file:
+            with open(f".//statics//{folder_name}//{title + str(i)}.css", "w") as css_file:
                 css_file.write(css_page.text)
             
     
@@ -162,9 +167,10 @@ class CSSObject:
 
     def change_css_paths(self):
         title = self.html_obj.get_title()
+        folder_name = self.html_obj.url.split('/')[-1] if self.html_obj.url.split('/')[-1] != "" else self.html_obj.url.split('/')[-2]
 
         for i in range(len(self.css_links)):
-            self.css_links[i]["href"] = "./" + title + str(i) + ".css"
+            self.css_links[i]["href"] = "../../statics/" + f"{folder_name}/" + title + str(i) + ".css"
 
 
 LOADED_PAGES = {}
@@ -187,8 +193,6 @@ def create_subdir(depth):
         os.makedirs(dir)
     
     return dir
-    
-#def (get relative path from root dir)
 
 
 def change_hrefs(html_path, link_paths: dict, url):
@@ -199,7 +203,7 @@ def change_hrefs(html_path, link_paths: dict, url):
             abs_link = urljoin(url, link["href"])
             if abs_link in link_paths.keys():
                 
-                path = os.path.join("../../", link_paths[abs_link])  #issue with paths
+                path = os.path.join("../../", link_paths[abs_link])  
                 link["href"] = path
         
         html_doc.seek(0)
@@ -223,19 +227,32 @@ def download_subpages(html_obj: HTMLObject, depth: int) -> None:
 
             sub_page = HTMLObject(link)
             sub_page.set_depth(depth)
+            css_obj = CSSObject(sub_page)
+            css_obj.donwload_css()
+            css_obj.change_css_paths()
             path = sub_page.download_html(level=depth)
             
             LOADED_PAGES.update({link:path})
             download_subpages(sub_page, depth-1)
 
     change_hrefs(html_obj.local_path, LOADED_PAGES, html_obj.url)
+    
 
 
 
 url = "https://peps.python.org/pep-0008"
 html_obj = HTMLObject(url)
+css_obj = CSSObject(html_obj)
+css_obj.donwload_css()
+
+css_obj.change_css_paths()
+
 path = html_obj.download_html()
+
 LOADED_PAGES.update({url:path})
+
+
+
 download_subpages(html_obj, 2)
 print(LOADED_PAGES)
 
